@@ -42,7 +42,7 @@ import numpy as np
 # tc66c_dir = script_dir / 'tc66c'
 # sys.path.insert(0, str(tc66c_dir))
 # sys.path.insert(0, '/home/c24guima/Documents/PlatformIO/Projects/sleep_v1/tc66c')
-from tc66c.TC66C import TC66C
+from TC66C import TC66C
 
 parser = argparse.ArgumentParser()
 DEFPORT = '/dev/ttyACM0'

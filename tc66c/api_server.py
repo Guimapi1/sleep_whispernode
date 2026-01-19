@@ -4,13 +4,13 @@ API Server pour TC66C
 Permet de requêter les données des N dernières minutes via une API REST
 """
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
 from threading import Thread, Lock
 from collections import deque
 import re
 from time import sleep
-from tc66c.TC66C import TC66C
+from TC66C import TC66C
 
 app = Flask(__name__)
 
@@ -40,12 +40,6 @@ class DataPoint:
             'voltage': self.data.Volt,
             'current': self.data.Current,
             'power': self.data.Power,
-            'resistance': self.data.Resistance,
-            'temperature': self.data.Temp,
-            'mah_g0': self.data.G0_mAh,
-            'mwh_g0': self.data.G0_mWh,
-            'mah_g1': self.data.G1_mAh,
-            'mwh_g1': self.data.G1_mWh,
         }
 
 
@@ -148,8 +142,8 @@ def get_data(time_period):
     }), 200
 
 
-# @app.route('/api/data/latest', methods=['GET'])
-# def get_latest():
+@app.route('/api/data/latest', methods=['GET'])
+def get_latest():
     """Retourne le dernier point de données"""
     with data_lock:
         if not data_storage:
@@ -217,6 +211,7 @@ def get_data(time_period):
 #     return jsonify(stats), 200
 
 
+
 @app.route('/api/config', methods=['GET', 'POST'])
 def config():
     """Affiche ou modifie la configuration"""
@@ -244,27 +239,395 @@ def config():
     }), 200
 
 
-# @app.route('/api/status', methods=['GET'])
-# def status():
-#     """Affiche le statut du serveur et du système de stockage"""
-#     with data_lock:
-#         data_count = len(data_storage)
+@app.route('/api/status', methods=['GET'])
+def status():
+    """Affiche le statut du serveur et du système de stockage"""
+    with data_lock:
+        data_count = len(data_storage)
     
-#     oldest = None
-#     newest = None
-#     if data_storage:
-#         with data_lock:
-#             oldest = data_storage[0].timestamp.isoformat()
-#             newest = data_storage[-1].timestamp.isoformat()
+    oldest = None
+    newest = None
+    if data_storage:
+        with data_lock:
+            oldest = data_storage[0].timestamp.isoformat()
+            newest = data_storage[-1].timestamp.isoformat()
     
-#     return jsonify({
-#         'running': is_running,
-#         'data_count': data_count,
-#         'oldest_data': oldest,
-#         'newest_data': newest,
-#         'retention_minutes': CONFIG['data_retention_minutes'],
-#         'polling_interval': CONFIG['polling_interval']
-#     }), 200
+    return jsonify({
+        'running': is_running,
+        'data_count': data_count,
+        'oldest_data': oldest,
+        'newest_data': newest,
+        'retention_minutes': CONFIG['data_retention_minutes'],
+        'polling_interval': CONFIG['polling_interval']
+    }), 200
+
+
+@app.route('/', methods=['GET'])
+def index():
+    """Page web pour visualiser les graphiques"""
+    return get_dashboard_html()
+
+
+def get_dashboard_html():
+    """Retourne le HTML de la page de visualisation"""
+    return '''
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>TC66C Dashboard</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(90deg,rgba(188, 207, 184, 1) 0%, rgba(189, 194, 180, 1) 10%);
+                min-height: 100vh;
+                padding: 20px;
+            }
+            
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+            }
+            
+            header {
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                margin-bottom: 30px;
+                text-align: center;
+            }
+            
+            h1 {
+                color: #333;
+                font-size: 2.5em;
+                margin-bottom: 10px;
+            }
+            
+            .status-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-top: 20px;
+            }
+            
+            .status-card {
+                background: #f8f9fa;
+                padding: 15px;
+                border-radius: 8px;
+                border-left: 4px solid #40AD40;
+            }
+            
+            .status-card label {
+                display: block;
+                font-size: 0.9em;
+                color: #666;
+                margin-bottom: 5px;
+                font-weight: 600;
+            }
+            
+            .status-card value {
+                display: block;
+                font-size: 1.5em;
+                color: #333;
+                font-weight: bold;
+            }
+            
+            .controls {
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                margin-bottom: 30px;
+                display: flex;
+                gap: 15px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            
+            .controls label {
+                font-weight: 600;
+                color: #333;
+            }
+            
+            .controls select, .controls button {
+                padding: 10px 15px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 1em;
+                cursor: pointer;
+                background: white;
+            }
+            
+            .controls button {
+                background: #40AD40;
+                color: white;
+                border: none;
+                font-weight: 600;
+                transition: background 0.3s;
+            }
+            
+            .controls button:hover {
+                background: #5DC95D;
+            }
+            
+            .charts-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 30px;
+                margin-bottom: 30px;
+            }
+            
+            .chart-container {
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            
+            .chart-container h2 {
+                color: #333;
+                font-size: 1.3em;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #3ee553;
+            }
+            
+            canvas {
+                max-height: 300px;
+            }
+            
+            .loading {
+                text-align: center;
+                color: white;
+                font-size: 1.2em;
+            }
+            
+            @media (max-width: 768px) {
+                .charts-grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                h1 {
+                    font-size: 1.8em;
+                }
+                
+                .controls {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                
+                .controls select, .controls button {
+                    width: 100%;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <h1> Dashboard</h1>
+                <div class="status-grid">
+                    <div class="status-card">
+                        <label>Données stockées</label>
+                        <value id="dataCount">-</value>
+                    </div>
+                    <div class="status-card">
+                        <label>Dernière mise à jour</label>
+                        <value id="lastUpdate">-</value>
+                    </div>
+                    <div class="status-card">
+                        <label>Courant actuel</label>
+                        <value id="currentCurrent">- A</value>
+                    </div>
+                    <div class="status-card">
+                        <label>Puissance actuelle</label>
+                        <value id="currentPower">- W</value>
+                    </div>
+                </div>
+            </header>
+            
+            <div class="controls">
+                <label for="timePeriod">Période:</label>
+                <select id="timePeriod">
+                    <option value="1m">1 minute</option>
+                    <option value="3m">3 minutes</option>
+                    <option value="5m">5 minutes</option>
+                    <option value="10m">10 minutes</option>
+                </select>
+                <button onclick="updateCharts()">Actualiser</button>
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h2>Courant (A)</h2>
+                    <canvas id="currentChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>Puissance (W)</h2>
+                    <canvas id="powerChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            let voltageChart, currentChart, powerChart;
+            
+            const chartConfig = {
+                type: 'line',
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                color: '#666'
+                            },
+                            grid: {
+                                color: '#f0f0f0'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#666'
+                            },
+                            grid: {
+                                color: '#f0f0f0'
+                            }
+                        }
+                    }
+                }
+            };
+            
+            function initCharts() {
+                currentChart = new Chart(document.getElementById('currentChart'), {
+                    ...chartConfig,
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Courant (A)',
+                            data: [],
+                            borderColor: '#22C55E',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    }
+                });
+                
+                powerChart = new Chart(document.getElementById('powerChart'), {
+                    ...chartConfig,
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Puissance (W)',
+                            data: [],
+                            borderColor: '#36A2EB',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    }
+                });
+            }
+            
+            async function updateCharts() {
+                const period = document.getElementById('timePeriod').value;
+                
+                try {
+                    const response = await fetch(`/api/data/${period}`);
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        console.error('Erreur:', result);
+                        return;
+                    }
+                    
+                    const data = result.data;
+                    
+                    if (data.length === 0) {
+                        console.log('Pas de données pour cette période');
+                        return;
+                    }
+                    
+                    // Extraction des données
+                    const labels = data.map(d => {
+                        const date = new Date(d.timestamp);
+                        return date.toLocaleTimeString('fr-FR');
+                    });
+                    
+                    const currents = data.map(d => d.current);
+                    const powers = data.map(d => d.power);
+                    
+                    // Mise à jour des graphiques
+                    currentChart.data.labels = labels;
+                    currentChart.data.datasets[0].data = currents;
+                    currentChart.update();
+                    
+                    powerChart.data.labels = labels;
+                    powerChart.data.datasets[0].data = powers;
+                    powerChart.update();
+                    
+                } catch (error) {
+                    console.error('Erreur lors du chargement des données:', error);
+                }
+            }
+            
+            async function updateStatus() {
+                try {
+                    const response = await fetch('/api/status');
+                    const status = await response.json();
+                    
+                    document.getElementById('dataCount').textContent = status.data_count;
+                    
+                    if (status.newest_data) {
+                        const date = new Date(status.newest_data);
+                        document.getElementById('lastUpdate').textContent = date.toLocaleTimeString('fr-FR');
+                    }
+                    
+                    const latestResponse = await fetch('/api/data/latest');
+                    if (latestResponse.ok) {
+                        const latest = await latestResponse.json();
+                        document.getElementById('currentCurrent').textContent = latest.current.toFixed(3) + ' A';
+                        document.getElementById('currentPower').textContent = latest.power.toFixed(2) + ' W';
+                    }
+                } catch (error) {
+                    console.error('Erreur lors de la mise à jour du statut:', error);
+                }
+            }
+            
+            // Initialisation
+            document.addEventListener('DOMContentLoaded', function() {
+                initCharts();
+                updateStatus();
+                updateCharts();
+                
+                // Mise à jour automatique toutes les 5 secondes
+                setInterval(() => {
+                    updateStatus();
+                    updateCharts();
+                }, 5000);
+            });
+        </script>
+    </body>
+    </html>
+    '''
 
 
 def start_server(port=5000, debug=False):
