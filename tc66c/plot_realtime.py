@@ -1,7 +1,28 @@
 """
+This module provides real-time visualization of current measurements from a TC66C 
+USB power meter device. It continuously polls the device and displays current, voltage, 
+and power data both in the terminal and on an animated matplotlib plot.
+Command-line Arguments:
+    port: Serial port where TC66C is connected (default: '/dev/ttyACM0')
+    --time, -t: Interval in seconds between polls (default: 1.0)
+Classes:
+    RealtimePlotter: Handles real-time plot creation and updates
+Usage:
+    python plot_realtime.py [port] [--time INTERVAL]
+    To find the serial port, use: pio device list --serial
+Example:
+    python plot_realtime.py /dev/ttyACM0 --time 1.0
+Dependencies:
+    - pyserial: Serial communication with TC66C
+    - pycryptodome: AES encryption support
+    - matplotlib: Real-time plotting
+    - numpy: Numerical operations
+    - TC66C: Custom module for device communication
 Real-time plot of Current vs Time from TC66C
 Updates dynamically as new data arrives
 """
+
+
 
 import serial
 import argparse
@@ -15,9 +36,13 @@ from matplotlib.animation import FuncAnimation
 import numpy as np
 
 # Import TC66C class
-import sys
-sys.path.insert(0, '/home/c24guima/Documents/PlatformIO/Projects/sleep_v1/tc66c')
-from TC66C import TC66C
+# import sys
+# from pathlib import Path
+# script_dir = Path(__file__).parent
+# tc66c_dir = script_dir / 'tc66c'
+# sys.path.insert(0, str(tc66c_dir))
+# sys.path.insert(0, '/home/c24guima/Documents/PlatformIO/Projects/sleep_v1/tc66c')
+from tc66c.TC66C import TC66C
 
 parser = argparse.ArgumentParser()
 DEFPORT = '/dev/ttyACM0'
