@@ -156,59 +156,59 @@ def get_latest():
     return jsonify(latest), 200
 
 
-# @app.route('/api/stats/<time_period>', methods=['GET'])
-# def get_stats(time_period):
-#     """
-#     Retourne les statistiques (min, max, moyenne) sur une période
-#     """
-#     delta = parse_time_param(time_period)
+@app.route('/api/stats/<time_period>', methods=['GET'])
+def get_stats(time_period):
+    """
+    Retourne les statistiques (min, max, moyenne) sur une période
+    """
+    delta = parse_time_param(time_period)
     
-#     if delta is None:
-#         return jsonify({
-#             'error': 'Format invalide',
-#             'message': 'Utilisez le format: Nm, Nh ou Ns (ex: 5m, 1h, 30s)'
-#         }), 400
+    if delta is None:
+        return jsonify({
+            'error': 'Format invalide',
+            'message': 'Utilisez le format: Nm, Nh ou Ns (ex: 5m, 1h, 30s)'
+        }), 400
     
-#     cutoff_time = datetime.now() - delta
+    cutoff_time = datetime.now() - delta
     
-#     with data_lock:
-#         filtered_data = [
-#             point 
-#             for point in data_storage 
-#             if point.timestamp >= cutoff_time
-#         ]
+    with data_lock:
+        filtered_data = [
+            point 
+            for point in data_storage 
+            if point.timestamp >= cutoff_time
+        ]
     
-#     if not filtered_data:
-#         return jsonify({
-#             'error': 'Pas de données pour cette période'
-#         }), 404
+    if not filtered_data:
+        return jsonify({
+            'error': 'Pas de données pour cette période'
+        }), 404
     
-#     # Calcul des statistiques
-#     voltages = [p.data.Volt for p in filtered_data]
-#     currents = [p.data.Current for p in filtered_data]
-#     powers = [p.data.Power for p in filtered_data]
+    # Calcul des statistiques
+    voltages = [p.data.Volt for p in filtered_data]
+    currents = [p.data.Current for p in filtered_data]
+    powers = [p.data.Power for p in filtered_data]
     
-#     stats = {
-#         'period': time_period,
-#         'sample_count': len(filtered_data),
-#         'voltage': {
-#             'min': min(voltages),
-#             'max': max(voltages),
-#             'avg': sum(voltages) / len(voltages)
-#         },
-#         'current': {
-#             'min': min(currents),
-#             'max': max(currents),
-#             'avg': sum(currents) / len(currents)
-#         },
-#         'power': {
-#             'min': min(powers),
-#             'max': max(powers),
-#             'avg': sum(powers) / len(powers)
-#         }
-#     }
+    stats = {
+        'period': time_period,
+        'sample_count': len(filtered_data),
+        'voltage': {
+            'min': min(voltages),
+            'max': max(voltages),
+            'avg': sum(voltages) / len(voltages)
+        },
+        'current': {
+            'min': min(currents),
+            'max': max(currents),
+            'avg': sum(currents) / len(currents)
+        },
+        'power': {
+            'min': min(powers),
+            'max': max(powers),
+            'avg': sum(powers) / len(powers)
+        }
+    }
     
-#     return jsonify(stats), 200
+    return jsonify(stats), 200
 
 
 
