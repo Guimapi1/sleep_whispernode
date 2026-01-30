@@ -219,7 +219,6 @@ def config():
         return jsonify(CONFIG), 200
     
     # POST - modifier la configuration
-    from flask import request
     data = request.get_json()
     
     if not data:
@@ -575,14 +574,27 @@ def get_dashboard_html():
                     const currents = data.map(d => d.current);
                     const powers = data.map(d => d.power);
                     
-                    // Mise à jour des graphiques
-                    currentChart.data.labels = labels;
-                    currentChart.data.datasets[0].data = currents;
-                    currentChart.update();
+                    // Limite du nombre de points affichés pour un effet de scrolling
+                    const maxPoints = 30;
                     
-                    powerChart.data.labels = labels;
-                    powerChart.data.datasets[0].data = powers;
-                    powerChart.update();
+                    // Mise à jour des graphiques avec effet de scrolling
+                    if (currentChart.data.labels.length >= maxPoints) {
+                        // Enlever le premier élément et ajouter le nouveau
+                        currentChart.data.labels.shift();
+                        currentChart.data.datasets[0].data.shift();
+                    }
+                    currentChart.data.labels.push(labels[labels.length - 1]);
+                    currentChart.data.datasets[0].data.push(currents[currents.length - 1]);
+                    currentChart.update('none'); // 'none' pour éviter l'animation
+                    
+                    if (powerChart.data.labels.length >= maxPoints) {
+                        // Enlever le premier élément et ajouter le nouveau
+                        powerChart.data.labels.shift();
+                        powerChart.data.datasets[0].data.shift();
+                    }
+                    powerChart.data.labels.push(labels[labels.length - 1]);
+                    powerChart.data.datasets[0].data.push(powers[powers.length - 1]);
+                    powerChart.update('none'); // 'none' pour éviter l'animation
                     
                 } catch (error) {
                     console.error('Erreur lors du chargement des données:', error);
