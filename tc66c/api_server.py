@@ -225,6 +225,9 @@ def config():
         return jsonify({'error': 'Pas de données'}), 400
     
     # Mise à jour sécurisée des paramètres
+    if 'port' in data:
+        CONFIG['port'] = str(data['port'])
+    
     if 'polling_interval' in data:
         CONFIG['polling_interval'] = float(data['polling_interval'])
     

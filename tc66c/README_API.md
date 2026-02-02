@@ -163,7 +163,7 @@ curl http://localhost:5000/api/config
 ```bash
 curl -X POST http://localhost:5000/api/config \
   -H "Content-Type: application/json" \
-  -d '{"data_retention_minutes": 30, "polling_interval": 2.0}'
+  -d '{"port": "/dev/ttyACM1", "data_retention_minutes": 30, "polling_interval": 2.0}'
 ```
 
 ##  Configuration
